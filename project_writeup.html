@@ -348,6 +348,22 @@
 
 </section>
 
+<h3> On the expected out of sample error </h3>
+<p> Please note that since the method <i>random forest</i> is chosen, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error. This is explained as:
+<br>
+<br>
+"In random forests, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error. It is estimated internally, during the run, as follows:
+<br>
+<br>
+Each tree is constructed using a different bootstrap sample from the original data. About one-third of the cases are left out of the bootstrap sample and not used in the construction of the kth tree.
+<br>
+<br>
+Put each case left out in the construction of the kth tree down the kth tree to get a classification. In this way, a test set classification is obtained for each case in about one-third of the trees. At the end of the run, take j to be the class that got most of the votes every time case n was oob. The proportion of times that j is not equal to the true class of n averaged over all cases is the oob error estimate. This has proven to be unbiased in many tests."
+<br>
+<br>
+The reader can find more information at: <a href="https://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr">https://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm#ooberr</a> 
+ </p>
+
 <b>Copyright &#9400; Alaettin Serhan Mete, 2017. All rights reserved.</b>
 
 </body>
