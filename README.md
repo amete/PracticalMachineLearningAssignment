@@ -2,15 +2,13 @@
 
 Prediction Assignment Writeup for Coursera Practical Machine Learning Course.
 
-This repository contains the main R script (*run_analysis.R*) that is needed to perform the analysis.
-The interested user can simply clone this repository, set the work directory to the local folder
-that contains it and call: *source("run_analysis.R")*.
+This repository contains the material that is need to perform and publish the analysis. It consists of:
 
-A detailed discussion of the analysis that is performed can be found in the file *project_writeup.Rhtml*.
-A compiled HTML version of this file is also stored in *project_writeup.html* and the necessary plots
-in the *figure/* folder. This HTML file is also hosted on GitHub pages for easing its view. 
+* figure/
+* project_writeup.html
+* project_writeup.Rhtml
+* run_analysis.R
+
+The *project_writeup.Rhtml* contains the analysis and the associated text that explains things. This is compiled into an HTML file called *project_writeup.html* and the figures are placed under the folder *figure/*. A lighter *R* script, named *run_analysis.R*, is also provided, which performs the same analysis and can be run by simply sourcing it.
 
 [https://amete.github.io/PracticalMachineLearningAssignment/project_writeup.html](https://amete.github.io/PracticalMachineLearningAssignment/project_writeup.html)
-
-PS: Note that the *Rhtml* file has *eval = FALSE* for the rcode parts. If you wish to run it please
-set them to *TRUE*.
