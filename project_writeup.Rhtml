@@ -1,0 +1,253 @@
+<html>
+
+<head>
+<title>Prediction Assignment Writeup</title>
+</head>
+
+<body>
+
+<h1> Prediction Assignment Writeup </h1>
+<h2> <i> Alaettin Serhan Mete </i> </h2>
+<h3> <i> Apr. 2017 </i> </h3>
+
+<section>
+<h1> Overview </h1>
+<p>This document summarizes the work done for the <i>Prediction Assignment Writeup</i> project for the <i>Coursera</i> <i>Practical Machine Learning</i> course. It's created using the functionalities of the <i>knitr</i> package in <i>RStudio</i> using the actual analysis code. The repository for this work can be found at <a href="https://github.com/amete/PracticalMachineLearningAssignment">https://github.com/amete/PracticalMachineLearningAssignment</a>. </p>
+</section>
+
+<section>
+<h1> Background </h1>
+<p>Using devices such as <i>Jawbone Up</i>, <i>Nike FuelBand</i>, and <i>Fitbit</i> it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify <i>how well they do it</i>. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <a href="http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har</a> (see the section on the Weight Lifting Exercise Dataset).</p>
+</section>
+
+<section>
+<h1> Data </h1>
+<p>The training data for this project are available here:</p>
+
+<p><a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv">https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv</a></p>
+
+<p>The test data are available here:</p>
+
+<p><a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv">https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv</a></p>
+</section>
+
+<section>
+<h1> Analysis </h1>
+
+<p>First, we begin by exporting the data. One can simply download the training and testing datasets using:</p>
+
+<!--begin.rcode eval=FALSE
+# Download the training and testing datasets
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv","training.csv",method = "curl")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv","testing.csv",method = "curl")
+end.rcode-->
+
+<p>Then, we load some useful packages using:</p>
+
+<!--begin.rcode eval=FALSE
+# Require the necessary packages
+require(data.table)
+require(dplyr)
+require(caret)
+end.rcode-->
+
+<p>Now let's load the data into memory:</p>
+
+<!--begin.rcode eval=FALSE
+# Load the training and testing datasets
+training <- tbl_df(fread("training.csv",na.strings=c('#DIV/0!', '', 'NA')))
+testing  <- tbl_df(fread("testing.csv",na.strings=c('#DIV/0!', '', 'NA'))) 
+end.rcode-->
+
+<p>Now that we have the data in the memory, let's get to the fun part. First thing we better do is to split the training data into two parts. We'll use 70% of this data to actually train our model and the remaining 30% to validate it:</p>
+
+<!--begin.rcode eval=FALSE
+# Now split the training into to as actual testing and validation
+set.seed(1234) # Don't forget the reproducibility!
+trainingDS <- createDataPartition( y = training$classe,
+                                   p = 0.7,
+                                   list = FALSE)
+actual.training <- training[trainingDS,]
+actual.validation <- training[-trainingDS,]
+end.rcode-->
+
+<p>Next, we need to prepare the data for modeling. If you look at the training data you'll see that there are a number of variables that have either no variance or a large fraction of missing values. These will not really help us in any meaningful way. Therefore, let's clean them up for a healthy modeling:</p>
+
+<!--begin.rcode eval=FALSE
+# Now clean-up the variables w/ zero variance
+# Be careful, kick out the same variables in both cases
+nzv <- nearZeroVar(actual.training)
+actual.training <- actual.training[,-nzv]
+actual.validation <- actual.validation[,-nzv]
+
+# Remove variables that are mostly NA
+mostlyNA <- sapply(actual.training,function(x) mean(is.na(x))) > 0.95
+actual.training <- actual.training[,mostlyNA==FALSE]
+actual.validation <- actual.validation[,mostlyNA==FALSE]
+
+# At this point we're already down to 59 variables from 160
+# See that the first 5 variables are identifiers that are
+# not probably useful for prediction so get rid of those
+# Dropping the total number of variables to 54 (53 for prediction)
+actual.training <- actual.training[,-(1:5)]
+actual.validation <- actual.validation[,-(1:5)]
+end.rcode-->
+
+<p>At this point, we have healthy clean data that we can use for building models. We'll build two models: a <i>random forest</i> and a <i>generalized boosted model</i>. We'll train these in the training portion of the original training dataset and then test them in the validation portion of the original training dataset: </p>
+
+<!--begin.rcode eval=FALSE
+# Now let's build a random forest model
+set.seed(1234)
+modelRF  <- train( classe ~.,
+                   data = actual.training,
+                   method = "rf",
+                   trControl = trainControl(method="cv",number=3) )
+
+end.rcode-->
+
+<!--begin.rcode eval=FALSE
+# One can also build a generalized boosted model and compare its accuracy
+# to random forest model
+set.seed(1234)
+modelBM <- train( classe ~.,
+                  data = actual.training,
+                  method = "gbm",
+                  trControl = trainControl(method="repeatedcv",number = 5,repeats = 1),
+                  verbose = FALSE)
+end.rcode-->
+
+<p>Then let's see how well these two models perform predicting the values in the validation dataset. This can be easily accomplished by predicting the values in the validation set, and then comparing the predictions with the actual values.</p>
+
+<!--begin.rcode eval=FALSE
+# Now get the prediction in the validation portion and see how well we do
+prediction.validation.rf <- predict(modelRF,actual.validation)
+conf.matrix.rf <- confusionMatrix(prediction.validation.rf,actual.validation$classe)
+print(conf.matrix.rf) 
+end.rcode-->
+
+<!--begin.rcode eval=FALSE
+# Confusion Matrix and Statistics
+# 
+#           Reference
+# Prediction    A    B    C    D    E
+#          A 1674    4    0    0    0
+#          B    0 1134    4    0    0
+#          C    0    1 1022    1    0
+#          D    0    0    0  963    2
+#          E    0    0    0    0 1080
+# 
+# Overall Statistics
+# 
+#                Accuracy : 0.998
+#                  95% CI : (0.9964, 0.9989)
+#     No Information Rate : 0.2845
+#     P-Value [Acc > NIR] : < 2.2e-16
+# 
+#                   Kappa : 0.9974
+#  Mcnemar's Test P-Value : NA
+# 
+# Statistics by Class:
+# 
+#                      Class: A Class: B Class: C Class: D Class: E
+# Sensitivity            1.0000   0.9956   0.9961   0.9990   0.9982
+# Specificity            0.9991   0.9992   0.9996   0.9996   1.0000
+# Pos Pred Value         0.9976   0.9965   0.9980   0.9979   1.0000
+# Neg Pred Value         1.0000   0.9989   0.9992   0.9998   0.9996
+# Prevalence             0.2845   0.1935   0.1743   0.1638   0.1839
+# Detection Rate         0.2845   0.1927   0.1737   0.1636   0.1835
+# Detection Prevalence   0.2851   0.1934   0.1740   0.1640   0.1835
+# Balanced Accuracy      0.9995   0.9974   0.9978   0.9993   0.9991
+end.rcode-->
+
+<!--begin.rcode eval=FALSE
+# Now get the prediction in the validation portion and see how well we do
+prediction.validation.bm <- predict(modelBM,actual.validation)
+conf.matrix.bm <- confusionMatrix(prediction.validation.bm,actual.validation$classe)
+print(conf.matrix.bm) 
+end.rcode-->
+
+<!--begin.rcode eval=FALSE
+# Confusion Matrix and Statistics
+# 
+#           Reference
+# Prediction    A    B    C    D    E
+#          A 1673   14    0    0    0
+#          B    1 1107    9    7    1
+#          C    0   15 1017   11    3
+#          D    0    3    0  946    9
+#          E    0    0    0    0 1069
+# 
+# Overall Statistics
+# 
+#                Accuracy : 0.9876
+#                  95% CI : (0.9844, 0.9903)
+#     No Information Rate : 0.2845
+#     P-Value [Acc > NIR] : < 2.2e-16
+# 
+#                   Kappa : 0.9843
+#  Mcnemar's Test P-Value : NA
+# 
+# Statistics by Class:
+# 
+#                      Class: A Class: B Class: C Class: D Class: E
+# Sensitivity            0.9994   0.9719   0.9912   0.9813   0.9880
+# Specificity            0.9967   0.9962   0.9940   0.9976   1.0000
+# Pos Pred Value         0.9917   0.9840   0.9723   0.9875   1.0000
+# Neg Pred Value         0.9998   0.9933   0.9981   0.9963   0.9973
+# Prevalence             0.2845   0.1935   0.1743   0.1638   0.1839
+# Detection Rate         0.2843   0.1881   0.1728   0.1607   0.1816
+# Detection Prevalence   0.2867   0.1912   0.1777   0.1628   0.1816
+# Balanced Accuracy      0.9980   0.9841   0.9926   0.9894   0.9940
+end.rcode-->
+
+<p>We can investigate our <i>generalized boosted model</i> a bit further to see which variables have the highest relative influence:</p>
+
+<!--begin.rcode eval=FALSE
+# Print the summary of our GBM
+print(summary(modelBM))
+end.rcode-->
+
+<!--begin.rcode eval=FALSE
+# var     rel.inf
+# num_window                     num_window 21.35545512
+# roll_belt                       roll_belt 18.27724938
+# pitch_forearm               pitch_forearm 10.13583112
+# magnet_dumbbell_z       magnet_dumbbell_z  6.72541291
+# yaw_belt                         yaw_belt  6.51200291
+# magnet_dumbbell_y       magnet_dumbbell_y  5.05649194
+# ...
+end.rcode-->
+
+<p>The above list shows the first couple of highest ranking variables. We see that <i>num_window</i>, <i>roll_belt</i>, and <i>pitch_forearm</i> are the most performant ones. We can checkout a few plots demonstrating their power:</p>
+
+<!--begin.rcode fig.width=7, fig.height=6 eval=FALSE
+qplot(num_window, roll_belt    , data = actual.training, col = classe)
+end.rcode-->
+
+<!--begin.rcode fig.width=7, fig.height=6 eval=FALSE
+qplot(num_window, pitch_forearm, data = actual.training, col = classe)
+end.rcode-->
+
+<!--begin.rcode fig.width=7, fig.height=6 eval=FALSE
+qplot(roll_belt , pitch_forearm, data = actual.training, col = classe)
+end.rcode-->
+
+<p>At this point we see the <i>random forest</i> has marginally better performance (Accuracy : 0.998) than the <i>generalized boosted model</i> (Accuracy : 0.9876). Actually we can go w/ either or ensemble them but that might be an overkill at this point. In any case they yield the same result. Let's test our model in the actual testing dataset:</p>
+
+<!--begin.rcode eval=FALSE
+# Now get the prediction in the testing portion and see what we get
+prediction.testing.rf <- predict(modelRF,testing)
+print(prediction.testing.rf)
+end.rcode-->
+
+<!--begin.rcode eval=FALSE
+#  [1] B A B A A E D B A A B C B A E E A B B B
+# Levels: A B C D E
+end.rcode-->
+
+</section>
+
+<b>Copyright &#9400; Alaettin Serhan Mete, 2017. All rights reserved.</b>
+
+</body>
+</html>
